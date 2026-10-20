@@ -1,0 +1,86 @@
+name: Build Vega Personal APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - build/vega-personal-apk
+    paths:
+      - '.github/workflows/vega-personal-apk.yml'
+      - 'app.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - 'src/**'
+      - 'plugins/**'
+      - 'assets/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-apk:
+    name: Build and verify Vega-Personal.apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build sandbox runtime
+        run: npm run build:sandbox
+
+      - name: Generate Android project for Vega Personal
+        env:
+          APP_VARIANT: personal
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Build debug APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew --no-daemon :app:assembleDebug
+
+      - name: Name and verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          cp "$APK" Vega-Personal.apk
+          echo "APK size:"
+          du -h Vega-Personal.apk
+          echo "SHA-256:"
+          sha256sum Vega-Personal.apk
+
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          if [ -n "$AAPT" ]; then
+            "$AAPT" dump badging Vega-Personal.apk | tee apk-badging.txt
+            grep -q "package: name='com.vega.personal'" apk-badging.txt
+            grep -q "application-label:'Vega Personal'" apk-badging.txt
+          else
+            echo "aapt was not found; APK existence and checksum verified, package/name inspection skipped."
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vega-Personal
+          path: Vega-Personal.apk
+          if-no-files-found: error
+          retention-days: 14
