@@ -19,11 +19,12 @@ const proxyApiUrl =
 
 module.exports = () => {
   const IS_PLAYSTORE = process.env.APP_VARIANT === 'playstore';
+  const IS_PERSONAL = process.env.APP_VARIANT === 'personal';
   const IS_TV = process.env.EXPO_TV === '1' || process.env.APP_VARIANT === 'tv';
   const HAS_FIREBASE =
     !IS_PLAYSTORE && (hasAndroidGoogleServices || hasIosGooglePlist);
-  const PACKAGE_NAME = IS_PLAYSTORE ? 'vega.app' : 'com.vega';
-  const APP_SCHEME = IS_PLAYSTORE ? 'vegaapp' : 'com.vega';
+  const PACKAGE_NAME = IS_PLAYSTORE ? 'vega.app' : IS_PERSONAL ? 'com.vega.personal' : 'com.vega';
+  const APP_SCHEME = IS_PLAYSTORE ? 'vegaapp' : IS_PERSONAL ? 'vegapersonal' : 'com.vega';
   const plugins = [
     './plugins/with-custom-native-modules.js',
     './plugins/android-native-config.js',
@@ -135,9 +136,9 @@ module.exports = () => {
   ];
   return {
     expo: {
-      name: 'Vega',
+      name: IS_PERSONAL ? 'Vega Personal' : 'Vega',
       scheme: APP_SCHEME,
-      displayName: 'Vega',
+      displayName: IS_PERSONAL ? 'Vega Personal' : 'Vega',
       jsEngine: 'hermes',
       newArchEnabled: true,
       autolinking: {exclude: ['expo-splash-screen']},
